@@ -33,6 +33,7 @@ This project was built using these technologies.
 - CSS3
 - Bootstrap
 - Netlify
+- Javascript
 
 ## Features
 
