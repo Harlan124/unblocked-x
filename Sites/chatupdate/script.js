@@ -1,110 +1,54 @@
-// 👇 PS! Replace this with your own channel ID 🚨
+// PS! Replace this with your own channel ID
+// If you use this channel ID your app will stop working in the future
 const CLIENT_ID = 'ZfM83mL5Uiz5K3qg';
 
-// public room
-const PUBLIC_ROOM_NAME = 'observable-room';
-// array of connected memebers
-let members = [];
-// the session user
-let me;
-// keeping track of which room the user has selected
-let selectedRoom = PUBLIC_ROOM_NAME;
-// room name to messages map, this is used to store messages for displaying them
-// at a later state
-const roomMessages = {};
+const drone = new ScaleDrone(CLIENT_ID, {
+  data: { // Will be sent out as clientData via events
+    name: getRandomName(),
+    color: getRandomColor(),
+  },
+});
 
-const drone = new Scaledrone(CLIENT_ID);
+let members = [];
 
 drone.on('open', error => {
   if (error) {
     return console.error(error);
   }
-  // get JWT from the Go server for the clientID
-  const formData = new FormData();
-  formData.append('clientID', drone.clientId);
-  fetch('/auth', {body: formData, method: 'POST'})
-    .then(res => res.text())
-    .then(jwt => drone.authenticate(jwt));
-});
-
-drone.on('authenticate', error => {
-  if (error) {
-    return console.error(error);
-  }
   console.log('Successfully connected to Scaledrone');
-  joinPublicRoom();
-  joinPersonalRoom();
-});
 
-// Start subscribing to messages from the public room
-function joinPublicRoom() {
-  const publicRoom = drone.subscribe(PUBLIC_ROOM_NAME);
-  publicRoom.on('open', error => {
+  const room = drone.subscribe('observable-room');
+  room.on('open', error => {
     if (error) {
       return console.error(error);
     }
-    console.log(`Successfully joined room ${PUBLIC_ROOM_NAME}`);
+    console.log('Successfully joined room');
   });
 
-  // Received array of members currently connected to the public room
-  publicRoom.on('members', m => {
+  room.on('members', m => {
     members = m;
-    me = members.find(m => m.id === drone.clientId);
-    DOM.updateMembers();
+    updateMembersDOM();
   });
 
-  // New member joined the public room
-  publicRoom.on('member_join', member => {
+  room.on('member_join', member => {
     members.push(member);
-    DOM.updateMembers();
+    updateMembersDOM();
   });
 
-  // Member left public room (closed browser tab)
-  publicRoom.on('member_leave', ({id}) => {
+  room.on('member_leave', ({id}) => {
     const index = members.findIndex(member => member.id === id);
     members.splice(index, 1);
-    DOM.updateMembers();
+    updateMembersDOM();
   });
 
-  // Received public message
-  publicRoom.on('message', message => {
-    const {data, member} = message;
-    if (member && member !== me) {
-      addMessageToRoomArray(PUBLIC_ROOM_NAME, member, data);
-      if (selectedRoom === PUBLIC_ROOM_NAME) {
-        DOM.addMessageToList(data, member);
-      }
-    }
-  });
-}
-
-// Start subscribing to messages from my private room (PMs to me)
-function joinPersonalRoom() {
-  const roomName = createPrivateRoomName(drone.clientId);
-  const myRoom = drone.subscribe(roomName);
-  myRoom.on('open', error => {
-    if (error) {
-      return console.error(error);
-    }
-    console.log(`Successfully joined room ${roomName}`);
-  });
-
-  myRoom.on('message', message => {
-    const {data, clientId} = message;
-    const member = members.find(m => m.id === clientId);
+  room.on('data', (text, member) => {
     if (member) {
-      addMessageToRoomArray(createPrivateRoomName(member.id), member, data);
-      if (selectedRoom === createPrivateRoomName(clientId)) {
-        DOM.addMessageToList(data, member);
-      }
+      addMessageToListDOM(text, member);
     } else {
-      /* Message is sent from golang using the REST API.
-       * You can handle it like a regular message but it won't have a connection
-       * session attached to it (this means no member argument)
-       */
+      // Message is from server
     }
   });
-}
+});
 
 drone.on('close', event => {
   console.log('Connection was closed', event);
@@ -114,114 +58,74 @@ drone.on('error', error => {
   console.error(error);
 });
 
-function changeRoom(name, roomName) {
-  selectedRoom = roomName;
-  DOM.updateChatTitle(name);
-  DOM.clearMessages();
-  if (roomMessages[roomName]) {
-    roomMessages[roomName].forEach(({data, member}) =>
-      DOM.addMessageToList(data, member)
-    );
-  }
+function getRandomName() {
+  const adjs = ["user", "anonymous", "user_name", "user0", "person", "human"];
+  const nouns = ["324234", "56556", "8789", "4590", "3484678", "43543", "665", "3434", "349-6", "g56", "768", "654", "7556", "6756", "43589375893", "34590", "3487725-4", "G-097", "34456", "54342", "564-685948", "454594394-38485", "34409dj8", "4389-1", "675456", "8765", "6832", "4505-6", "464534", "45034789", "55389", "349457", "349034578", "34345", "56543", "7654", "65343", "34-5858", "I-349348", "4534", "7654", "7654", "09876", "98765", "876", "87654-5", "8459-6", "6554", "0-859445", "8-579854", "567-4", "8-348945", "7-3439", "67-3", "6-5894", "5984589", "876", "8765765", "876543-7", "87654654334", "7-43784", "9-548954", "4-34859", "3478"];
+  return (
+    adjs[Math.floor(Math.random() * adjs.length)] +
+    "_" +
+    nouns[Math.floor(Math.random() * nouns.length)]
+  );
 }
 
-function createPrivateRoomName(clientId) {
-  return `private-room-${clientId}`;
+function getRandomColor() {
+  return '#' + Math.floor(Math.random() * 0xFFFFFF).toString(16);
 }
 
-function addMessageToRoomArray(roomName, member, data) {
-  console.log('add', roomName, member.id, data);
-  roomMessages[roomName] = roomMessages[roomName] || [];
-  roomMessages[roomName].push({member, data});
-}
-
-//------------- DOM Manipulation / Rendering the UI
+//------------- DOM STUFF
 
 const DOM = {
-  elements: {
-    me: document.querySelector('.me'),
-    membersList: document.querySelector('.members-list'),
-    messages: document.querySelector('.messages'),
-    input: document.querySelector('.message-form__input'),
-    form: document.querySelector('.message-form'),
-    chatTitle: document.querySelector('.chat-title'),
-    room: document.querySelector('.room'),
-  },
-
-  // Send message to Scaledrone and clear the input
-  sendMessage() {
-    const {input} = this.elements;
-    const value = input.value;
-    if (value === '') {
-      return;
-    }
-    input.value = '';
-    drone.publish({
-      room: selectedRoom,
-      message: value,
-    });
-    addMessageToRoomArray(selectedRoom, me, value);
-    this.addMessageToList(value, me);
-  },
-
-  // Create DOM element with member name and color
-  createMemberElement(member) {
-    const { name, color } = member.authData;
-    const el = document.createElement('div');
-    el.appendChild(document.createTextNode(name));
-    el.className = 'member';
-    el.style.color = color;
-    if (member !== me) {
-      // Listen to user clicking on another user
-      el.addEventListener('click', () =>
-        changeRoom(member.authData.name, createPrivateRoomName(member.id))
-      );
-    }
-    return el;
-  },
-
-  // Rerender the list of connected members
-  updateMembers() {
-    this.elements.me.innerHTML = '';
-    this.elements.me.appendChild(this.createMemberElement(me));
-    this.elements.membersList.innerHTML = '';
-    members.filter(m => m !== me).forEach(member =>
-      this.elements.membersList.appendChild(this.createMemberElement(member))
-    );
-  },
-
-  // Create a DOM element for the message
-  createMessageElement(text, member) {
-    const el = document.createElement('div');
-    el.appendChild(this.createMemberElement(member));
-    el.appendChild(document.createTextNode(text));
-    el.className = 'message';
-    return el;
-  },
-
-  // Add message element to the messages container
-  addMessageToList(text, member) {
-    const el = this.elements.messages;
-    const wasTop = el.scrollTop === el.scrollHeight - el.clientHeight;
-    el.appendChild(this.createMessageElement(text, member));
-    if (wasTop) {
-      el.scrollTop = el.scrollHeight - el.clientHeight;
-    }
-  },
-
-  updateChatTitle(roomName) {
-    this.elements.chatTitle.innerText = roomName;
-  },
-
-  clearMessages() {
-    this.elements.messages.innerHTML = '';
-  },
+  membersCount: document.querySelector('.members-count'),
+  membersList: document.querySelector('.members-list'),
+  messages: document.querySelector('.messages'),
+  input: document.querySelector('.message-form__input'),
+  form: document.querySelector('.message-form'),
 };
-// Listen to submitting the input form
-DOM.elements.form.addEventListener('submit', () =>
-  DOM.sendMessage()
-);
-// Listen to user clicking on the public room label
-DOM.elements.room.addEventListener('click', () =>
-  changeRoom('Public room', PUBLIC_ROOM_NAME)
-);
+
+DOM.form.addEventListener('submit', sendMessage);
+
+function sendMessage() {
+  const value = DOM.input.value;
+  if (value === '') {
+    return;
+  }
+  DOM.input.value = '';
+  drone.publish({
+    room: 'observable-room',
+    message: value,
+  });
+}
+
+function createMemberElement(member) {
+  const { name, color } = member.clientData;
+  const el = document.createElement('div');
+  el.appendChild(document.createTextNode(name));
+  el.className = 'member';
+  el.style.color = color;
+  return el;
+}
+
+function updateMembersDOM() {
+  DOM.membersCount.innerText = `${members.length} users in room:`;
+  DOM.membersList.innerHTML = '';
+  members.forEach(member =>
+    DOM.membersList.appendChild(createMemberElement(member))
+  );
+}
+
+function createMessageElement(text, member) {
+  const el = document.createElement('div');
+  el.appendChild(createMemberElement(member));
+  el.appendChild(document.createTextNode(text));
+  el.className = 'message';
+  return el;
+}
+
+function addMessageToListDOM(text, member) {
+  const el = DOM.messages;
+  const wasTop = el.scrollTop === el.scrollHeight - el.clientHeight;
+  el.appendChild(createMessageElement(text, member));
+  if (wasTop) {
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+  }
+}
