@@ -39,6 +39,8 @@ ga('send', 'pageview');
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
   <style>
+    
+    
     body {
       box-sizing: border-box;
       margin: 0;
@@ -51,7 +53,7 @@ ga('send', 'pageview');
     .left {
       display: flex;
       flex-direction: column;
-      background: #f9f9f9;
+      background: black;
       padding: 10px;
     }
 
@@ -73,17 +75,19 @@ ga('send', 'pageview');
     .label {
       text-transform: uppercase;
       font-size: 12px;
-      color: gray;
+      color: white;
     }
 
     .messages {
       flex-shrink: 1;
       flex-grow: 1;
       overflow: auto;
+    background-color:#151414;
     }
 
     .message {
       padding: 5px 0;
+    color:white;
     }
     .message .member {
       display: inline-block;
@@ -130,18 +134,18 @@ ga('send', 'pageview');
   <div class="left">
     <div class="label">Public rooms</div>
     <div class="rooms">
-      <div class="room">Global public room</div>
+      <div class="room" style="color:white">Global public room</div>
     </div>
     <div class="label">Connected users</div>
-    <div class="members-count">-</div>
+    <div class="members-count" style="color:white">-</div>
   <div class="members-list">-</div>
   </div>
   <div class="right">
-    <div class="chat-title">Global public room</div>
+    <div class="chat-title" style="color:white; background-color:black;">Global public room</div>
     <div class="messages"></div>
-    <form class="message-form" onsubmit="return false;">
-      <input class="message-form__input" placeholder="Type a message.." type="text"/>
-      <input class="message-form__button" value="Send" type="submit"/>
+    <form class="message-form" onsubmit="return false;" style="background-color:#151414">
+      <input class="message-form__input" placeholder="Type a message.." type="text" style="background-color:black;"/>
+      <input class="message-form__button" value="Send" type="submit" style="background-color:black; color:white;"/>
     </form>
   </div>
   <script src="./script.js"></script>
