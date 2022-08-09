@@ -10,7 +10,7 @@ local SlotsLeft = Instance.new("TextLabel")
 --Properties:
 
 PlayerCounter.Name = "PlayerCounter"
-PlayerCounter.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+PlayerCounter.Parent = game.CoreGui
 
 PlayerNumber.Name = "PlayerNumber"
 PlayerNumber.Parent = PlayerCounter
